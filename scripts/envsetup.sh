@@ -1730,10 +1730,10 @@ function build_rv_firmware_bin()
 
 	./gen_spi_flash $dtb_group \
 			fw_dynamic.bin fw_dynamic.bin 0x660000 0x00000000 \
-			riscv64_Image riscv64_Image 0x6b0000 0x02000000 \
-			SG2042.fd SG2042.fd 0x02000000 0x02000000 \
-			zsbl.bin zsbl.bin 0x2a00000 0x40000000 \
-			initrd.img initrd.img 0x2b00000 0x30000000
+			riscv64_Image riscv64_Image 0x700000 0x02000000 \
+			SG2042.fd SG2042.fd 0x02050000 0x02000000 \
+			zsbl.bin zsbl.bin 0x2a50000 0x40000000 \
+			initrd.img initrd.img 0x2b50000 0x30000000
 
 	mv spi_flash.bin firmware-$version.bin
 	rm -f gen_spi_flash
