@@ -2,22 +2,19 @@ name: sophgo-bootloader
 
 on:
   push:
-  pull_request:
   workflow_dispatch:
-  schedule:
-    - cron: "0 2 * * *"
 
 jobs:
   build-bootloader:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        M_CHIP_NUM: [single, multi]
-        LINUX_BRANCH: [sg2042-rel-6.1.31, sg2042-dev-6.6]
+        M_CHIP_NUM: [single]
+        LINUX_BRANCH: [sg2042-rel-6.1.31, sg2042-dev-6.6 ]
 
     env:
-      mainline_toolchain: https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2024.03.01
-      mainline_toolchain_file_name: riscv64-glibc-ubuntu-22.04-gcc-nightly-2024.03.01-nightly.tar.gz
+      mainline_toolchain: https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2025.01.20
+      mainline_toolchain_file_name: riscv64-glibc-ubuntu-22.04-gcc-nightly-2025.01.20-nightly.tar.xz
       wget_alias: 'wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 0'
       ARCH: riscv
       KBUILD_BUILD_USER: riscv
@@ -29,6 +26,10 @@ jobs:
       TOOLCHAIN_HOME: /opt/riscv/
 
     steps:
+      - name: Get current date
+        run: |
+          echo "BUILD_DATE=$(TZ=PRC date +'%Y%m%d')" >> "$GITHUB_ENV"
+
       - name: Checkout bootloader-riscv
         uses: actions/checkout@v4
         with:
@@ -58,6 +59,18 @@ jobs:
           repository: sophgo/linux-riscv
           path: linux-riscv
           ref: ${{ matrix.LINUX_BRANCH }}
+
+      - name: Modify linux-riscv
+        run: |
+              if [ "$BRANCH" != "sg2042-dev-6.12" ]; then # 6.12 is different, dts file name changed and don't have bootargs set in dts
+                pushd linux-riscv
+                  # Set serial console as the default, so I can use Milk-V Pioneer headlessly
+                  # Also add NVMe parameters to try to mitigate NVMe IO timeout issue during firmware boot
+                  sed -i -e 's|bootargs = "console=ttyS0,115200 console=tty1 earlycon maxcpus=1";|bootargs = "console=tty0 console=ttyS0,115200 earlycon maxcpus=1 nvme.use_threaded_interrupts=1 nvme_core.io_timeout=3000";|' arch/riscv/boot/dts/sophgo/mango-milkv-pioneer.dts
+                  # Print bootargs so can be checked when running workflow
+                  grep bootargs arch/riscv/boot/dts/sophgo/mango-milkv-pioneer.dts
+                popd
+              fi
 
       - uses: actions/setup-go@v5
         with:
@@ -141,6 +154,6 @@ jobs:
       - name: 'Upload Build Artifact'
         uses: actions/upload-artifact@v4
         with:
-          name: sophgo-bootloader-${{ matrix.M_CHIP_NUM }}-${{ matrix.LINUX_BRANCH }}
+          name: sophgo-bootloader-${{ matrix.M_CHIP_NUM }}-${{ matrix.LINUX_BRANCH }}-${{ env.BUILD_DATE }}
           path: firmware_*
           retention-days: 30
